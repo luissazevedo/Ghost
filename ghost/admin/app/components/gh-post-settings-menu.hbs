@@ -91,6 +91,7 @@
                                     <GhErrorMessage @errors={{this.post.errors}} @property="tiers" data-test-error="tiers" />
                                 </GhFormGroup>
                             {{/if}}
+
                         {{/if}}
 
                         {{#unless (feature 'editorExcerpt')}}
@@ -124,6 +125,14 @@
                     </section>
 
                     <ul class="nav-list">
+                        {{#if this.canManageUnlockLink}}
+                            <li class="nav-list-item">
+                                <button type="button" {{on "click" (fn this.showSubview "unlock-link")}} data-test-button="unlock-link">
+                                    <span>{{svg-jar "unlock"}} Create complimentary link</span>
+                                </button>
+                                {{svg-jar "arrow-right" class="arrow-right"}}
+                            </li>
+                        {{/if}}
                         {{#if (and this.post.isPage this.post.lexical)}}
                             <li class="nav-list-item">
                                 <div class="for-switch xs">
@@ -593,8 +602,49 @@
                             </form>
                         </div>
                     {{/if}}
+                    {{#if (eq this.subview "unlock-link")}}
+                        <div class="settings-menu-header subview">
+                            <button aria-label="Close complimentary link panel" class="back settings-menu-header-action" data-test-button="close-psm-subview" type="button" {{action "closeSubview"}}>{{svg-jar "arrow-left"}}<span class="hidden">Back</span></button>
+                            <h4>Complimentary link</h4>
+                            <div style="width:23px;"></div>
+                        </div>
 
+                        <div class="settings-menu-content">
+                            <form {{action "discardEnter" on="submit"}} class="gh-post-settings" aria-label="Complimentary link settings">
+                                {{#if this.isLoadingPostShareLink}}
+                                    <GhFormGroup>
+                                        <p>Loading complimentary link…</p>
+                                    </GhFormGroup>
+                                {{else if this.postShareLink}}
+                                    <GhFormGroup>
+                                        <GhTextInput
+                                            @class="gh-input-x"
+                                            @id="guest-link-url"
+                                            @name="guest-link-url"
+                                            @readonly={{true}}
+                                            @value={{this.postShareLink.share_url}}
+                                        />
+                                        <p class="post-settings-unlock-meta">Created <strong>{{moment-format this.postShareLink.created_at "DD MMM YYYY"}}</strong>. Viewed <strong>{{format-number this.postShareLink.view_count}}</strong> {{if (eq this.postShareLink.view_count 1) "time" "times"}}.</p>
+                                    </GhFormGroup>
 
+                                    <div class="post-settings-unlock-actions">
+                                        <button type="button" class="gh-btn gh-btn-outline gh-btn-icon" title="Revoke complimentary link" disabled={{this.isSavingPostShareLink}} {{on "click" this.revokePostShareLink}} data-test-button="revoke-unlock-link">
+                                            <span>{{svg-jar "trash"}} Revoke link</span>
+                                        </button>
+                                        <button type="button" class="gh-btn gh-btn-primary gh-btn-icon" title="Copy complimentary link" disabled={{this.isSavingPostShareLink}} {{on "click" this.copyPostShareLink}} data-test-button="copy-unlock-link">
+                                            <span>{{svg-jar (if this.isCopiedPostShareLink "check" "link")}} {{if this.isCopiedPostShareLink "Copied" "Copy link"}}</span>
+                                        </button>
+                                    </div>
+                                {{else}}
+                                    <div class="post-settings-unlock-actions">
+                                        <button type="button" class="gh-btn gh-btn-primary gh-btn-icon gh-btn-fullwidth" title="Create complimentary link" disabled={{this.isSavingPostShareLink}} {{on "click" this.createPostShareLink}} data-test-button="create-unlock-link">
+                                            <span>{{svg-jar "link"}} Create complimentary link</span>
+                                        </button>
+                                    </div>
+                                {{/if}}
+                            </form>
+                        </div>
+                    {{/if}}
 
                     {{#if (eq this.subview "meta-data")}}
                         <div class="settings-menu-header subview">
@@ -807,13 +857,13 @@
 
                     {{#if (eq this.subview "codeinjection")}}
                         <div class="settings-menu-header subview">
-                            <button aria-label="Close code injection panel" class="back settings-menu-header-action" data-test-button="close-psm-subview" type="button" {{action "closeSubview"}}>{{svg-jar "arrow-left"}}<span class="hidden">Back</span></button>
+                            <button aria-label="Close code injection panel" class="back settings-menu-header-action" data-test-button="close-psm-subview" type="button" {{on "click" this.closeSubview}}>{{svg-jar "arrow-left"}}<span class="hidden">Back</span></button>
                             <h4>Code injection</h4>
                             <div style="width:23px;"></div>
                         </div>
 
                         <div class="settings-menu-content settings-menu-content-codeinjection">
-                            <form {{action "discardEnter" on="submit"}} class="gh-post-settings" aria-label="Code injection settings">
+                            <form {{on "submit" this.discardEnter}} class="gh-post-settings" aria-label="Code injection settings">
                                 <GhFormGroup @errors={{this.post.errors}} @hasValidated={{this.post.hasValidated}} @property="codeinjectionHead">
                                     <label for="codeinjection-head">{{capitalize this.post.displayName}} header <code>\{{ghost_head}}</code></label>
                                     <GhCmEditor @value={{this.codeinjectionHeadScratch}}

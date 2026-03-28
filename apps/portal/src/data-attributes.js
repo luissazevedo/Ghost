@@ -1,5 +1,5 @@
 /* eslint-disable no-console */
-import {getCheckoutSessionDataFromPlanAttribute, getUrlHistory} from './utils/helpers';
+import {getCheckoutSessionDataFromPlanAttribute, getUrlHistory, getUnlockLinkPostId} from './utils/helpers';
 import {HumanReadableError, chooseBestErrorMessage} from './utils/errors';
 import {t} from './utils/i18n';
 
@@ -58,11 +58,15 @@ export async function formSubmitHandler(
         name: name,
         autoRedirect: (autoRedirect === 'true')
     };
+    const unlockLinkPostId = getUnlockLinkPostId();
     if (wantsOTC) {
         reqBody.includeOTC = true;
     }
     if (urlHistory) {
         reqBody.urlHistory = urlHistory;
+    }
+    if (unlockLinkPostId) {
+        reqBody.unlockLinkPostId = unlockLinkPostId;
     }
     if (newsletterInputs.length > 0) {
         reqBody.newsletters = newsletters;
@@ -89,16 +93,18 @@ export async function formSubmitHandler(
         form.addEventListener('submit', submitHandler);
         form.classList.remove('loading');
         if (magicLinkRes.ok) {
-            form.classList.add('success');
-
             let responseBody;
-            if (wantsOTC) {
-                try {
-                    responseBody = await magicLinkRes.clone().json();
-                } catch (e) {
-                    responseBody = undefined;
-                }
+            try {
+                responseBody = await magicLinkRes.clone().json();
+            } catch (e) {
+                responseBody = undefined;
             }
+
+            if (responseBody?.redirectUrl) {
+                return window.location.assign(responseBody.redirectUrl);
+            }
+
+            form.classList.add('success');
 
             const otcRef = responseBody?.otc_ref;
             if (otcRef && typeof doAction === 'function') {
@@ -151,9 +157,13 @@ export function planClickHandler({event, el, errorEl, siteUrl, site, member, cli
         checkoutType: 'upgrade'
     } : {};
     const urlHistory = getUrlHistory();
+    const unlockLinkPostId = getUnlockLinkPostId();
 
     if (urlHistory) {
         metadata.urlHistory = urlHistory;
+    }
+    if (unlockLinkPostId) {
+        metadata.unlock_link_post_id = unlockLinkPostId;
     }
 
     return fetch(`${siteUrl}/members/api/session`, {

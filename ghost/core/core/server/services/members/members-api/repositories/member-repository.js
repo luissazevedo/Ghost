@@ -288,7 +288,7 @@ module.exports = class MemberRepository {
             options.batch_id = ObjectId().toHexString();
         }
 
-        const {labels, stripeCustomer, offerId, attribution} = data;
+        const {labels, stripeCustomer, offerId, attribution, unlockLinkPostId} = data;
 
         if (labels) {
             labels.forEach((label, index) => {
@@ -459,7 +459,8 @@ module.exports = class MemberRepository {
                         id: member.id,
                         subscription,
                         offerId,
-                        attribution
+                        attribution,
+                        unlockLinkPostId
                     }, {batch_id: options.batch_id});
                 } catch (err) {
                     if (err.code !== 'ER_DUP_ENTRY' && err.code !== 'SQLITE_CONSTRAINT') {
@@ -475,6 +476,7 @@ module.exports = class MemberRepository {
             memberId: member.id,
             batchId: options.batch_id,
             attribution: data.attribution,
+            unlockLinkPostId,
             source
         }, eventData.created_at), options);
 
@@ -1296,6 +1298,7 @@ module.exports = class MemberRepository {
                 subscriptionId: newStripeCustomerSubscriptionModel.get('id'),
                 offerId: offerId,
                 attribution: attribution,
+                unlockLinkPostId: data.unlockLinkPostId ?? stripeSubscriptionData.metadata?.unlock_link_post_id ?? null,
                 batchId: options.batch_id
             });
 

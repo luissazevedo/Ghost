@@ -9,6 +9,7 @@
  * @prop {string} subscriptionId
  * @prop {string} offerId
  * @prop {import('@tryghost/member-attribution/lib/Attribution').Attribution} [attribution]
+ * @prop {string} [unlockLinkPostId]
  */
 
 module.exports = class SubscriptionCreatedEvent {

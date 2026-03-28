@@ -41,7 +41,7 @@ function entryLookup(postUrl, routerOptions, locals) {
         include: 'authors,tags,tiers'
     };
 
-    options.context = {member: locals.member};
+    options.context = {member: locals.member, postAccess: locals.postAccess};
 
     return (api[routerOptions.query.controller] || api[routerOptions.query.resource])
         .read(_.extend(_.pick(params, 'slug', 'id'), options))

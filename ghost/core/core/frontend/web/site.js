@@ -15,6 +15,7 @@ const themeEngine = require('../services/theme-engine');
 const themeMiddleware = themeEngine.middleware;
 const membersService = require('../../server/services/members');
 const offersService = require('../../server/services/offers');
+const postShareLinksService = require('../../server/services/post-share-links');
 const customRedirects = require('../../server/services/custom-redirects');
 const linkRedirectsHandler = require('./routers/link-redirects');
 const siteRoutes = require('./routes');
@@ -107,6 +108,8 @@ module.exports = function setupSiteApp(routerConfig) {
 
     // Global handling for member session, ensures a member is logged in to the frontend
     siteApp.use(membersService.middleware.loadMemberSession);
+    siteApp.get(['/share/:token', '/share/:token/'], postShareLinksService.middleware.redeemShareLink);
+    siteApp.use(postShareLinksService.middleware.loadSharedAccess);
 
     // Theme middleware
     // This should happen AFTER any shared assets are served, as it only changes things to do with templates

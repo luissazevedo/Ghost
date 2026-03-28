@@ -369,6 +369,34 @@ li.nav-list-item .for-switch.xs label {
     color: var(--red-d1);
 }
 
+.post-settings-unlock-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin: 2.4rem 2.4rem 2.4rem;
+}
+
+.post-settings-unlock-actions .gh-btn {
+    width: 100%;
+    justify-content: center;
+}
+
+.post-settings-unlock-actions-single {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.post-settings-unlock-actions .gh-btn-fullwidth {
+    grid-column: 1 / -1;
+    width: 100%;
+}
+
+.post-settings-unlock-meta {
+    margin-top: -2px;
+    color: var(--midgrey);
+    font-size: 1.3rem;
+    line-height: 1.5;
+}
+
 .post-setting-custom-excerpt {
     font-size: 1.5rem;
     line-height: 1.35em;

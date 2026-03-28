@@ -1,3 +1,12 @@
 {
-    "enableDeveloperExperiments": true
+    "enableDeveloperExperiments": true,
+    "members": {
+        "devBypassMagicLinkEmail": true
+    },
+    "portal": {
+        "url": "http://localhost:2368/public/portal.local.js"
+    },
+    "security": {
+        "staffDeviceVerification": false
+    }
 }

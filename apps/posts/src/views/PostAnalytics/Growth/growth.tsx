@@ -18,7 +18,7 @@ export const centsToDollars = (value : number) => {
 interface postAnalyticsProps {}
 
 const Growth: React.FC<postAnalyticsProps> = () => {
-    const {data: globalData} = useGlobalData();
+    const {site} = useGlobalData();
     const {postId} = useParams();
     const {stats: postReferrers, totals, isLoading, currencySymbol} = usePostReferrers(postId || '');
     const {appSettings} = useAppContext();
@@ -26,8 +26,8 @@ const Growth: React.FC<postAnalyticsProps> = () => {
     const navigateToMembers = (filter: string) => navigate(buildMembersUrl({filter}), {crossApp: true});
 
     // Get site URL and icon from global data
-    const siteUrl = globalData?.url as string | undefined;
-    const siteIcon = globalData?.icon as string | undefined;
+    const siteUrl = site?.url as string | undefined;
+    const siteIcon = site?.icon as string | undefined;
 
     let containerClass = 'flex flex-col items-stretch gap-6';
     let cardClass = '';

@@ -31,8 +31,13 @@ const rejectUnknownKeys = input => nql.utils.mapQuery(input, function (value, ke
  *
  * @returns {AccessFlag}
  */
-function checkPostAccess(post, member) {
+function checkPostAccess(post, member, postAccess) {
     if (post.visibility === 'public') {
+        return PERMIT_ACCESS;
+    }
+
+    const sharedPostIds = Array.isArray(postAccess?.postIds) ? postAccess.postIds : [postAccess?.postId].filter(Boolean);
+    if (sharedPostIds.includes(post.id)) {
         return PERMIT_ACCESS;
     }
 

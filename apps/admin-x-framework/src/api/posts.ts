@@ -64,3 +64,103 @@ export const useSearchIndexPosts = createQuery<PostsResponseType>({
     dataType,
     path: '/search-index/posts/'
 });
+
+export type PostShareLink = {
+    id: string;
+    post_id: string;
+    share_url: string;
+    post_url: string;
+    view_count: number;
+    created_at: string;
+    updated_at?: string | null;
+    revoked_at?: string | null;
+};
+
+export interface PostShareLinkResponseType {
+    post_share_link: PostShareLink | null;
+}
+
+const postShareLinkDataType = 'PostShareLinkResponseType';
+
+type RawPostShareLink = {
+    id?: string;
+    post_id?: string;
+    share_url?: string | null;
+    post_url?: string | null;
+    view_count?: number | null;
+    created_at?: string | null;
+    updated_at?: string | null;
+    revoked_at?: string | null;
+    token?: string;
+};
+
+const normalizePostShareLinkResponse = (originalData: unknown): PostShareLinkResponseType => {
+    const data = originalData as {
+        post_share_link?: PostShareLink | null;
+        post_share_links?: RawPostShareLink[] | RawPostShareLink | null;
+        token?: string;
+        post_id?: string;
+        share_url?: string;
+        post_url?: string;
+        view_count?: number | null;
+        created_at?: string | null;
+        updated_at?: string | null;
+        revoked_at?: string | null;
+    };
+
+    const normalizeLink = (link: RawPostShareLink | null | undefined): PostShareLink | null => {
+        if (!link || !link.id || !link.post_id) {
+            return null;
+        }
+
+        const shareUrl = link.share_url || (link.token ? new URL(`/share/${link.token}/`, window.location.origin).toString() : '');
+        const postUrl = link.post_url || '';
+
+        return {
+            id: link.id,
+            post_id: link.post_id,
+            share_url: shareUrl,
+            post_url: postUrl,
+            view_count: link.view_count ?? 0,
+            created_at: link.created_at || '',
+            updated_at: link.updated_at ?? null,
+            revoked_at: link.revoked_at ?? null
+        };
+    };
+
+    if ('post_share_link' in data) {
+        return {
+            post_share_link: normalizeLink(data.post_share_link)
+        };
+    }
+
+    if (Array.isArray(data.post_share_links)) {
+        return {
+            post_share_link: normalizeLink(data.post_share_links[0])
+        };
+    }
+
+    return {
+        post_share_link: normalizeLink(data.post_share_links ?? data)
+    };
+};
+
+export const getPostShareLink = createQueryWithId<PostShareLinkResponseType>({
+    dataType: postShareLinkDataType,
+    path: id => `/posts/${id}/share_link/`,
+    returnData: normalizePostShareLinkResponse
+});
+
+export const useCreatePostShareLink = createMutation<PostShareLinkResponseType, string>({
+    method: 'POST',
+    path: id => `/posts/${id}/share_link/`,
+    body: () => ({post_share_links: [{}]}),
+    returnData: normalizePostShareLinkResponse,
+    invalidateQueries: {dataType: postShareLinkDataType}
+});
+
+export const useDeletePostShareLink = createMutation<unknown, string>({
+    method: 'DELETE',
+    path: id => `/posts/${id}/share_link/`,
+    invalidateQueries: {dataType: postShareLinkDataType}
+});

@@ -4,6 +4,7 @@
  * @prop {string} batchId
  * @prop {'import' | 'system' | 'api' | 'admin' | 'member'} source
  * @prop {import('@tryghost/member-attribution/lib/Attribution').Attribution} [attribution] Attribution
+ * @prop {string} [unlockLinkPostId]
  */
 
 module.exports = class MemberCreatedEvent {

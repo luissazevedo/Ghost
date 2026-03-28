@@ -139,6 +139,23 @@ function getAnnouncementBarHelper(data) {
     return helper;
 }
 
+function getUnlockLinkAttributionHelper(dataRoot) {
+    const post = dataRoot?.post;
+    const sharedPostAccess = dataRoot?._locals?.sharedPostAccess;
+
+    if (!post || !sharedPostAccess?.postIds?.includes(post.id)) {
+        return '';
+    }
+
+    const payload = JSON.stringify({
+        postId: post.id,
+        source: 'Complimentary link',
+        medium: 'paid-post-share'
+    });
+
+    return `<script>window.ghostUnlockLinkAttribution = ${payload};</script>`;
+}
+
 function getWebmentionDiscoveryLink() {
     try {
         const siteUrl = urlUtils.getSiteUrl();
@@ -331,6 +348,10 @@ module.exports = async function ghost_head(options) { // eslint-disable-line cam
         }
 
         if (settingsCache.get('members_enabled') && settingsCache.get('members_track_sources')) {
+            const unlockLinkAttributionHelper = getUnlockLinkAttributionHelper(dataRoot);
+            if (!_.isEmpty(unlockLinkAttributionHelper)) {
+                head.push(unlockLinkAttributionHelper);
+            }
             head.push(`<script defer src="${getAssetUrl('public/member-attribution.min.js')}"></script>`);
         }
 

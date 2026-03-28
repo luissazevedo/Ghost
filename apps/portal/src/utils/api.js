@@ -1,5 +1,5 @@
 import {HumanReadableError} from './errors';
-import {transformApiSiteData, transformApiTiersData, getUrlHistory} from './helpers';
+import {transformApiSiteData, transformApiTiersData, getUrlHistory, getUnlockLinkPostId} from './helpers';
 
 function setupGhostApi({siteUrl = window.location.origin, apiUrl, apiKey}) {
     const apiPath = 'members/api';
@@ -275,7 +275,7 @@ function setupGhostApi({siteUrl = window.location.origin, apiUrl, apiKey}) {
          *     otc_ref?: string;
          * }}
          */
-        async sendMagicLink({email, emailType, labels, name, oldEmail, newsletters, redirect, integrityToken, phonenumber, customUrlHistory, token, autoRedirect = true, includeOTC}) {
+        async sendMagicLink({email, emailType, labels, name, oldEmail, newsletters, redirect, integrityToken, phonenumber, customUrlHistory, token, autoRedirect = true, includeOTC, unlockLinkPostId}) {
             const url = endpointFor({type: 'members', resource: 'send-magic-link'});
             const body = {
                 name,
@@ -294,8 +294,12 @@ function setupGhostApi({siteUrl = window.location.origin, apiUrl, apiKey}) {
                 includeOTC
             };
             const urlHistory = customUrlHistory ?? getUrlHistory();
+            const resolvedUnlockLinkPostId = unlockLinkPostId ?? getUnlockLinkPostId();
             if (urlHistory) {
                 body.urlHistory = urlHistory;
+            }
+            if (resolvedUnlockLinkPostId) {
+                body.unlockLinkPostId = resolvedUnlockLinkPostId;
             }
 
             const res = await makeRequest({
@@ -459,6 +463,7 @@ function setupGhostApi({siteUrl = window.location.origin, apiUrl, apiKey}) {
                 requestSrc: 'portal',
                 fp_tid: (window.FPROM || window.$FPROM)?.data?.tid,
                 urlHistory: getUrlHistory(),
+                unlock_link_post_id: getUnlockLinkPostId(),
                 ...metadata
             };
 

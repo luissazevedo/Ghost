@@ -184,6 +184,20 @@ module.exports = {
         created_at: {type: 'dateTime', nullable: false},
         updated_at: {type: 'dateTime', nullable: true}
     },
+
+    post_share_links: {
+        id: {type: 'string', maxlength: 24, nullable: false, primary: true},
+        post_id: {type: 'string', maxlength: 24, nullable: false, references: 'posts.id', cascadeDelete: true},
+        token: {type: 'string', maxlength: 191, nullable: false, unique: true},
+        view_count: {type: 'integer', nullable: false, unsigned: true, defaultTo: 0},
+        revoked_at: {type: 'dateTime', nullable: true},
+        created_at: {type: 'dateTime', nullable: false},
+        updated_at: {type: 'dateTime', nullable: true},
+        '@@INDEXES@@': [
+            ['post_id'],
+            ['revoked_at']
+        ]
+    },
     posts_authors: {
         id: {type: 'string', maxlength: 24, nullable: false, primary: true},
         post_id: {type: 'string', maxlength: 24, nullable: false, references: 'posts.id'},
@@ -535,6 +549,7 @@ module.exports = {
             }
         },
         attribution_url: {type: 'string', maxlength: 2000, nullable: true},
+        unlock_link_post_id: {type: 'string', maxlength: 24, nullable: true},
         // referrer values from browser, processed by our referrerParser library
         referrer_source: {type: 'string', maxlength: 191, nullable: true},
         referrer_medium: {type: 'string', maxlength: 191, nullable: true},
@@ -725,6 +740,7 @@ module.exports = {
             }
         },
         attribution_url: {type: 'string', maxlength: 2000, nullable: true},
+        unlock_link_post_id: {type: 'string', maxlength: 24, nullable: true},
         // referrer values from browser, processed by our referrerParser library
         referrer_source: {type: 'string', maxlength: 191, nullable: true},
         referrer_medium: {type: 'string', maxlength: 191, nullable: true},

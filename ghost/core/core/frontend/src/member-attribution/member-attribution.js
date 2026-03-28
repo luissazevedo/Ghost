@@ -6,6 +6,7 @@ const getReferrer = urlAttribution.getReferrer;
 
 // Location where we want to store the history in sessionStorage
 const STORAGE_KEY = 'ghost-history';
+const UNLOCK_LINK_POST_ID_KEY = 'ghost-unlock-link-post-id';
 
 // How long before an item should expire (24h)
 // Note: With sessionStorage, data automatically expires when the session ends,
@@ -119,6 +120,22 @@ const LIMIT = 15;
         try {
             const url = new URL(window.location.href);
             const params = url.searchParams;
+            const unlockLinkAttribution = window.ghostUnlockLinkAttribution;
+            const shareToken = params.get('share');
+
+            if (shareToken && unlockLinkAttribution?.postId) {
+                storage.setItem(UNLOCK_LINK_POST_ID_KEY, unlockLinkAttribution.postId);
+                history.push({
+                    time: currentTime,
+                    id: unlockLinkAttribution.postId,
+                    type: 'post',
+                    ...attributionData,
+                    referrerSource: unlockLinkAttribution.source,
+                    referrerMedium: unlockLinkAttribution.medium,
+                    referrerUrl
+                });
+            }
+
             if (params.get('attribution_id') && params.get('attribution_type')) {
                 // Add attribution to history before the current path
                 history.push({
@@ -132,9 +149,10 @@ const LIMIT = 15;
                 // Remove attribution from query string
                 params.delete('attribution_id');
                 params.delete('attribution_type');
-                url.search = '?' + params.toString();
-                window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
             }
+
+            url.search = params.toString() ? '?' + params.toString() : '';
+            window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
         } catch (error) {
             console.error('[Member Attribution] Parsing attribution from querystring failed', error);
         }

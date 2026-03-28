@@ -255,7 +255,7 @@ module.exports = function MembersAPI({
     }
 
     async function getMemberDataFromMagicLinkToken(token, otcVerification) {
-        const {email, labels = [], name = '', oldEmail, newsletters, attribution, reqIp, type} = await getTokenDataFromMagicLinkToken(token, otcVerification);
+        const {email, labels = [], name = '', oldEmail, newsletters, attribution, reqIp, type, unlockLinkPostId} = await getTokenDataFromMagicLinkToken(token, otcVerification);
         if (!email) {
             return null;
         }
@@ -290,7 +290,7 @@ module.exports = function MembersAPI({
             }
         }
 
-        const newMember = await users.create({name, email, labels, newsletters, attribution, geolocation});
+        const newMember = await users.create({name, email, labels, newsletters, attribution, geolocation, unlockLinkPostId});
 
         await MemberLoginEvent.add({member_id: newMember.id});
         return getMemberIdentityData(email);

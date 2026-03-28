@@ -16,6 +16,7 @@ const onHeaders = require('on-headers');
 const tiersService = require('../tiers/service');
 const config = require('../../../shared/config');
 const settingsHelpers = require('../settings-helpers');
+const postShareLinksService = require('../post-share-links');
 
 const messages = {
     missingUuid: 'Missing uuid.',
@@ -209,6 +210,7 @@ const verifyIntegrityToken = async function verifyIntegrityToken(req, res, next)
 const deleteSession = async function deleteSession(req, res) {
     try {
         await membersService.ssr.deleteSession(req, res);
+        postShareLinksService.clearCookie(req, res);
         res.writeHead(204);
         res.end();
     } catch (err) {

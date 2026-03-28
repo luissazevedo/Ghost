@@ -1,6 +1,7 @@
 import Component from '@ember/component';
 import boundOneWay from 'ghost-admin/utils/bound-one-way';
 import classic from 'ember-classic-decorator';
+import copyTextToClipboard from 'ghost-admin/utils/copy-text-to-clipboard';
 import moment from 'moment-timezone';
 import {action, computed} from '@ember/object';
 import {alias, or} from '@ember/object/computed';
@@ -26,6 +27,10 @@ export default class GhPostSettingsMenu extends Component {
     @inject config;
 
     @tracked showPostHistory = false;
+    @tracked postShareLink = null;
+    @tracked isLoadingPostShareLink = false;
+    @tracked isSavingPostShareLink = false;
+    @tracked isCopiedPostShareLink = false;
 
     post = null;
     isViewingSubview = false;
@@ -173,6 +178,13 @@ export default class GhPostSettingsMenu extends Component {
         return !this.themeManagement.activeTheme.hasPageBuilderFeature('show_title_and_feature_image');
     }
 
+    get canManageUnlockLink() {
+        return !this.post.isNew
+            && !this.post.emailOnly
+            && ['paid', 'tiers'].includes(this.post.visibility)
+            && (this.post.isPublished || this.post.isSent);
+    }
+
     willDestroyElement() {
         super.willDestroyElement(...arguments);
 
@@ -189,15 +201,66 @@ export default class GhPostSettingsMenu extends Component {
     }
 
     @action
-    showSubview(subview) {
+    async showSubview(subview) {
         this.set('isViewingSubview', true);
         this.set('subview', subview);
+
+        if (subview === 'unlock-link') {
+            await this.loadPostShareLink();
+        }
     }
 
     @action
     closeSubview() {
         this.set('isViewingSubview', false);
         this.set('subview', null);
+        this.isCopiedPostShareLink = false;
+    }
+
+    @action
+    async createPostShareLink() {
+        this.isSavingPostShareLink = true;
+
+        try {
+            const response = await this.ajax.post(`/ghost/api/admin/posts/${this.post.id}/share_link/`);
+            this.postShareLink = response?.post_share_link || null;
+            this.notifications.showNotification('Complimentary link created.', {type: 'success'});
+        } catch (error) {
+            this.showError(error);
+        } finally {
+            this.isSavingPostShareLink = false;
+        }
+    }
+
+    @action
+    async revokePostShareLink() {
+        this.isSavingPostShareLink = true;
+
+        try {
+            await this.ajax.delete(`/ghost/api/admin/posts/${this.post.id}/share_link/`);
+            this.postShareLink = null;
+            this.isCopiedPostShareLink = false;
+            this.notifications.showNotification('Complimentary link revoked.', {type: 'success'});
+        } catch (error) {
+            this.showError(error);
+        } finally {
+            this.isSavingPostShareLink = false;
+        }
+    }
+
+    @action
+    copyPostShareLink() {
+        if (!this.postShareLink?.share_url) {
+            return;
+        }
+
+        copyTextToClipboard(this.postShareLink.share_url);
+        this.isCopiedPostShareLink = true;
+        this.notifications.showNotification('Complimentary link copied.', {type: 'success'});
+
+        window.setTimeout(() => {
+            this.isCopiedPostShareLink = false;
+        }, 2000);
     }
 
     @action
@@ -657,5 +720,22 @@ export default class GhPostSettingsMenu extends Component {
     setSidebarWidthVariable(width) {
         document.documentElement.style.setProperty('--editor-sidebar-width', `${width}px`);
         document.documentElement.style.setProperty('--kg-breakout-adjustment', `${width}px`);
+    }
+
+    async loadPostShareLink() {
+        this.isLoadingPostShareLink = true;
+
+        try {
+            const response = await this.ajax.request(`/ghost/api/admin/posts/${this.post.id}/share_link/`);
+            this.postShareLink = response?.post_share_link || null;
+        } catch (error) {
+            this.postShareLink = null;
+
+            if (error?.payload?.errors?.[0]?.type !== 'NotFoundError') {
+                this.showError(error);
+            }
+        } finally {
+            this.isLoadingPostShareLink = false;
+        }
     }
 }

@@ -87,7 +87,7 @@ const forPost = (attrs, frame) => {
         attrs.access = true;
     }
 
-    const memberHasAccess = membersService.contentGating.checkPostAccess(attrs, frame.original.context.member);
+    const memberHasAccess = membersService.contentGating.checkPostAccess(attrs, frame.original.context.member, frame.original.context.postAccess);
 
     if (!memberHasAccess) {
         const paywallIndex = (attrs.html || '').indexOf('<!--members-only-->');

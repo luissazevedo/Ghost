@@ -21,6 +21,7 @@ const corsMiddleware = require('./middleware/cors');
 module.exports = function setupMembersApp() {
     debug('Members App setup start');
     const membersApp = express('members');
+    const shouldBypassMagicLinkRateLimits = config.get('members:devBypassMagicLinkEmail') === true;
 
     // Members API shouldn't be cached
     membersApp.use(shared.middleware.cacheControl('private'));
@@ -81,10 +82,12 @@ module.exports = function setupMembersApp() {
         '/api/send-magic-link',
         bodyParser.json(),
         middleware.verifyIntegrityToken,
-        // Prevent brute forcing email addresses (user enumeration)
-        shared.middleware.brute.membersAuthEnumeration,
-        // Prevent brute forcing passwords for the same email address
-        shared.middleware.brute.membersAuth,
+        ...(!shouldBypassMagicLinkRateLimits ? [
+            // Prevent brute forcing email addresses (user enumeration)
+            shared.middleware.brute.membersAuthEnumeration,
+            // Prevent brute forcing passwords for the same email address
+            shared.middleware.brute.membersAuth
+        ] : []),
         // NOTE: this is wrapped in a function to ensure we always go via the getter
         function lazySendMagicLinkMw(req, res, next) {
             return membersService.api.middleware.sendMagicLink(req, res, next);

@@ -101,7 +101,12 @@ const SOURCE_NORMALIZATION_MAP = new Map([
     ['www.flipboard.com', 'Flipboard'],
     ['smartnews', 'SmartNews'],
     ['smartnews.com', 'SmartNews'],
-    ['www.smartnews.com', 'SmartNews']
+    ['www.smartnews.com', 'SmartNews'],
+
+    // Complimentary link attribution
+    ['unlock link', 'Complimentary link'],
+    ['share link', 'Complimentary link'],
+    ['complimentary link', 'Complimentary link']
 ]);
 
 /**

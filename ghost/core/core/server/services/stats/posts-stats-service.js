@@ -287,6 +287,7 @@ class PostsStatsService {
      */
     async getReferrersForPost(postId, options = {}) {
         try {
+            const knex = this.knex;
             const order = options.order || 'free_members desc';
             const limitRaw = Number.parseInt(String(options.limit ?? 20), 10);
             const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : 20;
@@ -310,32 +311,40 @@ class PostsStatsService {
             // First, let's get all sources from both tables using separate queries
             // Then combine and group them in a cross-database compatible way
             const membersCreatedSources = this.knex('members_created_events as mce')
+                .leftJoin('posts as unlock_posts', 'mce.unlock_link_post_id', 'unlock_posts.id')
                 .select('mce.referrer_source as source')
                 .select('mce.referrer_url')
+                .select('mce.unlock_link_post_id')
+                .select('unlock_posts.title as unlock_link_post_title')
                 .where('mce.attribution_id', postId)
                 .where('mce.attribution_type', 'post')
                 .whereNotNull('mce.referrer_source');
 
             const membersSubscriptionSources = this.knex('members_subscription_created_events as msce')
+                .leftJoin('posts as unlock_posts', 'msce.unlock_link_post_id', 'unlock_posts.id')
                 .select('msce.referrer_source as source')
                 .select('msce.referrer_url')
+                .select('msce.unlock_link_post_id')
+                .select('unlock_posts.title as unlock_link_post_title')
                 .where('msce.attribution_id', postId)
                 .where('msce.attribution_type', 'post')
                 .whereNotNull('msce.referrer_source');
 
             // Using a simpler combined query that works in SQLite
-            const allSources = this.knex.select('source', 'referrer_url')
+            const allSources = this.knex.select('source', 'referrer_url', 'unlock_link_post_id', 'unlock_link_post_title')
                 .from(membersCreatedSources.as('sources1'))
                 .union(function () {
-                    this.select('source', 'referrer_url')
+                    this.select('source', 'referrer_url', 'unlock_link_post_id', 'unlock_link_post_title')
                         .from(membersSubscriptionSources.as('sources2'));
                 });
 
             // Create the final CTE that we'll use to get all referrers
             const allReferrersCTE = this.knex.select('source')
                 .select(this.knex.raw('MIN(referrer_url) as referrer_url'))
+                .select('unlock_link_post_id')
+                .select('unlock_link_post_title')
                 .from(allSources.as('all_sources'))
-                .groupBy('source');
+                .groupBy('source', 'unlock_link_post_id', 'unlock_link_post_title');
 
             // Now join all the data
             let query = this.knex
@@ -346,14 +355,25 @@ class PostsStatsService {
                 .select(
                     'ar.source',
                     'ar.referrer_url',
+                    'ar.unlock_link_post_id',
+                    'ar.unlock_link_post_title',
                     this.knex.raw('COALESCE(fr.free_members, 0) as free_members'),
                     this.knex.raw('COALESCE(pr.paid_members, 0) as paid_members'),
                     this.knex.raw('COALESCE(mr.mrr, 0) as mrr')
                 )
                 .from('all_referrers as ar')
-                .leftJoin('free_referrers as fr', 'ar.source', 'fr.source')
-                .leftJoin('paid_referrers as pr', 'ar.source', 'pr.source')
-                .leftJoin('mrr_referrers as mr', 'ar.source', 'mr.source')
+                .leftJoin('free_referrers as fr', function () {
+                    this.on('ar.source', '=', 'fr.source')
+                        .andOn(knex.raw('(ar.unlock_link_post_id = fr.unlock_link_post_id OR (ar.unlock_link_post_id IS NULL AND fr.unlock_link_post_id IS NULL))'));
+                })
+                .leftJoin('paid_referrers as pr', function () {
+                    this.on('ar.source', '=', 'pr.source')
+                        .andOn(knex.raw('(ar.unlock_link_post_id = pr.unlock_link_post_id OR (ar.unlock_link_post_id IS NULL AND pr.unlock_link_post_id IS NULL))'));
+                })
+                .leftJoin('mrr_referrers as mr', function () {
+                    this.on('ar.source', '=', 'mr.source')
+                        .andOn(knex.raw('(ar.unlock_link_post_id = mr.unlock_link_post_id OR (ar.unlock_link_post_id IS NULL AND mr.unlock_link_post_id IS NULL))'));
+                })
                 .whereNotNull('ar.source');
 
             const results = await query
@@ -365,8 +385,11 @@ class PostsStatsService {
 
             results.forEach((row) => {
                 const normalizedSource = normalizeSource(row.source);
-                const existing = normalizedResults.get(normalizedSource) || {
-                    source: normalizedSource,
+                const unlockLinkSourceLabel = normalizedSource === 'Complimentary link' && row.unlock_link_post_title
+                    ? `Complimentary link · ${row.unlock_link_post_title}`
+                    : normalizedSource;
+                const existing = normalizedResults.get(unlockLinkSourceLabel) || {
+                    source: unlockLinkSourceLabel,
                     referrer_url: row.referrer_url,
                     free_members: 0,
                     paid_members: 0,
@@ -377,7 +400,7 @@ class PostsStatsService {
                 existing.paid_members += row.paid_members;
                 existing.mrr += row.mrr;
 
-                normalizedResults.set(normalizedSource, existing);
+                normalizedResults.set(unlockLinkSourceLabel, existing);
             });
 
             // Convert back to array and sort again since normalization might have changed the order
@@ -613,17 +636,19 @@ class PostsStatsService {
         // Simpler approach mirroring _buildFreeMembersSubquery
         let subquery = knex('members_created_events as mce')
             .select('mce.referrer_source as source')
+            .select('mce.unlock_link_post_id')
             .countDistinct('mce.member_id as free_members')
             .leftJoin('members_subscription_created_events as msce', function () {
                 this.on('mce.member_id', '=', 'msce.member_id')
                     .andOn('mce.attribution_id', '=', 'msce.attribution_id') // Conversion must be for the SAME post
                     .andOn('mce.referrer_source', '=', 'msce.referrer_source') // And the SAME referrer
+                    .andOn(knex.raw('(mce.unlock_link_post_id = msce.unlock_link_post_id OR (mce.unlock_link_post_id IS NULL AND msce.unlock_link_post_id IS NULL))'))
                     .andOnVal('msce.attribution_type', '=', 'post');
             })
             .where('mce.attribution_id', postId)
             .where('mce.attribution_type', 'post')
             .whereNull('msce.id') // Keep only signups where no matching paid conversion (same post/referrer) exists
-            .groupBy('mce.referrer_source');
+            .groupBy('mce.referrer_source', 'mce.unlock_link_post_id');
 
         applyDateFilter(subquery, dateFrom, dateTo, 'mce.created_at');
         return subquery;
@@ -642,10 +667,11 @@ class PostsStatsService {
         const {dateFrom, dateTo} = getDateBoundaries(options);
         let subquery = knex('members_subscription_created_events as msce')
             .select('msce.referrer_source as source')
+            .select('msce.unlock_link_post_id')
             .countDistinct('msce.member_id as paid_members')
             .where('msce.attribution_id', postId)
             .where('msce.attribution_type', 'post')
-            .groupBy('msce.referrer_source');
+            .groupBy('msce.referrer_source', 'msce.unlock_link_post_id');
 
         applyDateFilter(subquery, dateFrom, dateTo, 'msce.created_at');
         return subquery;
@@ -664,6 +690,7 @@ class PostsStatsService {
         const {dateFrom, dateTo} = getDateBoundaries(options);
         let subquery = knex('members_subscription_created_events as msce')
             .select('msce.referrer_source as source')
+            .select('msce.unlock_link_post_id')
             .sum('mpse.mrr_delta as mrr')
             .join('members_paid_subscription_events as mpse', function () {
                 this.on('mpse.subscription_id', '=', 'msce.subscription_id');
@@ -672,7 +699,7 @@ class PostsStatsService {
             })
             .where('msce.attribution_id', postId)
             .where('msce.attribution_type', 'post')
-            .groupBy('msce.referrer_source');
+            .groupBy('msce.referrer_source', 'msce.unlock_link_post_id');
 
         applyDateFilter(subquery, dateFrom, dateTo, 'msce.created_at');
         return subquery;

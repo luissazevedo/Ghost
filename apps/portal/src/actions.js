@@ -88,7 +88,13 @@ async function signin({data, api, state}) {
             integrityToken,
             includeOTC: true
         };
-        const {otc_ref: otcRef, inboxLinks} = await api.member.sendMagicLink(payload);
+        const {otc_ref: otcRef, inboxLinks, redirectUrl} = await api.member.sendMagicLink(payload);
+        if (redirectUrl) {
+            window.location.assign(redirectUrl);
+            return {
+                page: 'loading'
+            };
+        }
         return {
             page: 'magiclink',
             lastPage: 'signin',
@@ -164,7 +170,14 @@ async function signup({data, state, api}) {
         let inboxLinks;
         if (plan.toLowerCase() === 'free') {
             const integrityToken = await api.member.getIntegrityToken();
-            ({inboxLinks} = await api.member.sendMagicLink({emailType: 'signup', integrityToken, ...data, name}));
+            const response = await api.member.sendMagicLink({emailType: 'signup', integrityToken, ...data, name});
+            if (response.redirectUrl) {
+                window.location.assign(response.redirectUrl);
+                return {
+                    page: 'loading'
+                };
+            }
+            ({inboxLinks} = response);
         } else {
             if (tierId && cadence) {
                 await api.member.checkoutPlan({plan, tierId, cadence, email, name, newsletters, offerId});

@@ -6,6 +6,7 @@ const apiMw = require('../../middleware');
 const mw = require('./middleware');
 
 const shared = require('../../../shared');
+const postShareLinksService = require('../../../../services/post-share-links');
 
 /**
  * @returns {import('express').Router}
@@ -40,6 +41,31 @@ module.exports = function apiRoutes() {
     router.put('/posts/:id', mw.authAdminApi, http(api.posts.edit));
     router.del('/posts/:id', mw.authAdminApi, http(api.posts.destroy));
     router.post('/posts/:id/copy', mw.authAdminApi, http(api.posts.copy));
+    router.get('/posts/:id/share_link', mw.authAdminApi, async function readPostShareLink(req, res, next) {
+        try {
+            const postShareLink = await postShareLinksService.getForAdmin(req.params.id);
+            res.json({post_share_link: postShareLink});
+        } catch (error) {
+            next(error);
+        }
+    });
+    router.post('/posts/:id/share_link', mw.authAdminApi, async function addPostShareLink(req, res, next) {
+        try {
+            const userId = req.user?.get?.('id') || req.user?.id || null;
+            const postShareLink = await postShareLinksService.createForPost(req.params.id, userId);
+            res.status(201).json({post_share_link: postShareLink});
+        } catch (error) {
+            next(error);
+        }
+    });
+    router.del('/posts/:id/share_link', mw.authAdminApi, async function deletePostShareLink(req, res, next) {
+        try {
+            await postShareLinksService.revokeForPost(req.params.id);
+            res.status(204).end();
+        } catch (error) {
+            next(error);
+        }
+    });
 
     router.get('/mentions', mw.authAdminApi, http(api.mentions.browse));
 

@@ -157,7 +157,7 @@ const PostAnalyticsHeader:React.FC<PostAnalyticsHeaderProps> = ({
                                 {/* <Button variant='outline'><LucideIcon.Share /></Button> */}
                                 {!isPostLoading &&
                                 <>
-                                    {!post?.email_only && (
+                                    {!post?.email_only &&
                                         <PostShareModal
                                             author={post?.authors?.[0]?.name || ''}
                                             description=''
@@ -173,7 +173,7 @@ const PostAnalyticsHeader:React.FC<PostAnalyticsHeaderProps> = ({
                                         >
                                             <Button variant='outline' onClick={() => setIsShareOpen(true)}><LucideIcon.Share /> Share</Button>
                                         </PostShareModal>
-                                    )}
+                                    }
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
                                             <Button variant='outline'><LucideIcon.Ellipsis /></Button>

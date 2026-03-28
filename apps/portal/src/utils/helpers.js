@@ -951,6 +951,17 @@ export function getUrlHistory() {
     }
 }
 
+export function getUnlockLinkPostId() {
+    const STORAGE_KEY = 'ghost-unlock-link-post-id';
+
+    try {
+        const unlockLinkPostId = sessionStorage.getItem(STORAGE_KEY);
+        return unlockLinkPostId || undefined;
+    } catch (error) {
+        console.warn(`[Portal] Failed to load unlock link post id:`, error);
+    }
+}
+
 export function addMonths(date, numberOfMonths = 1) {
     const originalDate = new Date(date);
 

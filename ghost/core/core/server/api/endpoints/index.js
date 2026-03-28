@@ -57,6 +57,10 @@ module.exports = {
         return apiFramework.pipeline(require('./posts'), localUtils);
     },
 
+    get postShareLinks() {
+        return apiFramework.pipeline(require('./post-share-links'), localUtils);
+    },
+
     get mentions() {
         return apiFramework.pipeline(require('./mentions'), localUtils);
     },

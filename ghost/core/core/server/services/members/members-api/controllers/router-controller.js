@@ -6,6 +6,7 @@ const sanitizeHtml = require('sanitize-html');
 const {BadRequestError, NoPermissionError, UnauthorizedError, DisabledFeatureError, NotFoundError} = require('@tryghost/errors');
 const errors = require('@tryghost/errors');
 const {isEmail} = require('@tryghost/validator');
+const config = require('../../../../../shared/config');
 const normalizeEmail = require('../utils/normalize-email');
 const hasActiveOffer = require('../utils/has-active-offer');
 const {getInboxLinks} = require('../../../../lib/get-inbox-links');
@@ -739,26 +740,35 @@ module.exports = class RouterController {
         try {
             /** @type {{inboxLinks?: {desktop: string; android: string; provider: string}; otc_ref?: string}} */
             const resBody = {};
+            const devBypassMagicLinkEmail = config.get('members:devBypassMagicLinkEmail') === true;
 
             if (emailType === 'signup' || emailType === 'subscribe') {
-                await this._handleSignup(req, normalizedEmail, referrer);
+                const signUp = await this._handleSignup(req, normalizedEmail, referrer, {devBypassMagicLinkEmail});
+                if (signUp?.redirectUrl) {
+                    resBody.redirectUrl = signUp.redirectUrl;
+                }
             } else {
-                const signIn = await this._handleSignin(req, normalizedEmail, referrer);
+                const signIn = await this._handleSignin(req, normalizedEmail, referrer, {devBypassMagicLinkEmail});
                 if (signIn.otcRef) {
                     resBody.otc_ref = signIn.otcRef;
                 }
+                if (signIn.redirectUrl) {
+                    resBody.redirectUrl = signIn.redirectUrl;
+                }
             }
 
-            const inboxLinks = await getInboxLinks({
-                recipient: normalizedEmail,
-                sender: this._emailAddressService.getMembersSupportAddress(),
-                dnsResolver: this.#inboxLinksDnsResolver
-            });
-            if (inboxLinks) {
-                resBody.inboxLinks = inboxLinks;
-                logging.info(`[Inbox links] Found inbox links for provider ${inboxLinks.provider}`);
-            } else {
-                logging.info('[Inbox links] Found no inbox links');
+            if (!resBody.redirectUrl) {
+                const inboxLinks = await getInboxLinks({
+                    recipient: normalizedEmail,
+                    sender: this._emailAddressService.getMembersSupportAddress(),
+                    dnsResolver: this.#inboxLinksDnsResolver
+                });
+                if (inboxLinks) {
+                    resBody.inboxLinks = inboxLinks;
+                    logging.info(`[Inbox links] Found inbox links for provider ${inboxLinks.provider}`);
+                } else {
+                    logging.info('[Inbox links] Found no inbox links');
+                }
             }
 
             res.writeHead(201, {'Content-Type': 'application/json'});
@@ -841,7 +851,7 @@ module.exports = class RouterController {
         return `${timestamp}:${hash}`;
     }
 
-    async _handleSignup(req, normalizedEmail, referrer = null) {
+    async _handleSignup(req, normalizedEmail, referrer = null, {devBypassMagicLinkEmail = false} = {}) {
         if (!this._allowSelfSignup()) {
             if (this._settingsCache.get('members_signup_access') === 'paid') {
                 throw new errors.BadRequestError({
@@ -869,13 +879,25 @@ module.exports = class RouterController {
             name: req.body.name,
             reqIp: req.ip ?? undefined,
             newsletters: await this._validateNewsletters(req.body?.newsletters ?? []),
-            attribution: await this._memberAttributionService.getAttribution(req.body.urlHistory)
+            attribution: await this._memberAttributionService.getAttribution(req.body.urlHistory),
+            unlockLinkPostId: req.body.unlockLinkPostId ?? null
         };
+
+        if (devBypassMagicLinkEmail) {
+            return {
+                redirectUrl: await this._getDirectMagicLink({
+                    email: normalizedEmail,
+                    requestedType: emailType,
+                    tokenData,
+                    referrer
+                })
+            };
+        }
 
         return await this._sendEmailWithMagicLink({email: normalizedEmail, tokenData, requestedType: emailType, referrer});
     }
 
-    async _handleSignin(req, normalizedEmail, referrer = null) {
+    async _handleSignin(req, normalizedEmail, referrer = null, {devBypassMagicLinkEmail = false} = {}) {
         const {emailType, includeOTC: reqIncludeOTC} = req.body;
 
         let includeOTC = false;
@@ -893,7 +915,37 @@ module.exports = class RouterController {
         }
 
         const tokenData = {};
+        if (devBypassMagicLinkEmail) {
+            return {
+                redirectUrl: await this._getDirectMagicLink({
+                    email: normalizedEmail,
+                    requestedType: emailType,
+                    tokenData,
+                    referrer
+                })
+            };
+        }
+
         return await this._sendEmailWithMagicLink({email: normalizedEmail, tokenData, requestedType: emailType, referrer, includeOTC});
+    }
+
+    async _getDirectMagicLink({email, requestedType, tokenData, referrer = null}) {
+        let type = requestedType;
+        const member = await this._memberRepository.get({email});
+
+        if (member) {
+            type = 'signin';
+        } else if (type !== 'subscribe') {
+            type = 'signup';
+        }
+
+        const url = await this._magicLinkService.getMagicLink({
+            tokenData: Object.assign({email, type}, tokenData),
+            type,
+            referrer
+        });
+
+        return url?.href || url?.toString?.() || null;
     }
 
     /**
