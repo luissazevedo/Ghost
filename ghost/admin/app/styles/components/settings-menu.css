@@ -395,6 +395,75 @@ li.nav-list-item .for-switch.xs label {
     color: var(--midgrey);
     font-size: 1.3rem;
     line-height: 1.5;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.post-settings-unlock-warning {
+    margin-top: 4px;
+    color: var(--red-d1);
+    font-size: 1.3rem;
+    line-height: 1.5;
+}
+
+.post-settings-unlock-reset-link {
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--midgrey);
+    font-size: 1.3rem;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.post-settings-unlock-reset-link:hover {
+    color: var(--darkgrey);
+}
+
+.post-settings-unlock-confirm-text {
+    color: var(--midgrey);
+}
+
+.post-settings-unlock-confirm-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.post-settings-unlock-reset-confirm {
+    color: var(--darkgrey);
+    font-weight: 600;
+}
+
+.gh-post-settings-unlock-inline {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.gh-post-settings-unlock-inline .gh-input-x {
+    padding-right: 40px;
+}
+
+.gh-post-settings-unlock-copy {
+    position: absolute;
+    right: 8px;
+    background: none;
+    border: none;
+    padding: 4px;
+    cursor: pointer;
+    color: var(--midgrey);
+    display: flex;
+    align-items: center;
+}
+
+.gh-post-settings-unlock-copy:hover {
+    color: var(--darkgrey);
+}
+
+.gh-post-settings-unlock-copy svg {
+    width: 16px;
+    height: 16px;
 }
 
 .post-setting-custom-excerpt {

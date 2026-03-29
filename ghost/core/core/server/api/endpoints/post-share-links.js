@@ -56,7 +56,7 @@ const controller = {
     },
 
     destroy: {
-        statusCode: 204,
+        statusCode: 200,
         headers: {
             cacheInvalidate: false
         },
@@ -75,8 +75,9 @@ const controller = {
             method: 'edit'
         },
         async query(frame) {
-            await postShareLinksService.revokeForPost(frame.options.id);
-            return null;
+            return {
+                post_share_link: await postShareLinksService.cycleForPost(frame.options.id)
+            };
         }
     }
 };

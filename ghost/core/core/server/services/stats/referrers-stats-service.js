@@ -103,9 +103,9 @@ const SOURCE_NORMALIZATION_MAP = new Map([
     ['smartnews.com', 'SmartNews'],
     ['www.smartnews.com', 'SmartNews'],
 
-    // Complimentary link attribution
-    ['unlock link', 'Complimentary link'],
-    ['share link', 'Complimentary link'],
+    // Gift link attribution
+    ['unlock link', 'Gift link'],
+    ['share link', 'Gift link'],
     ['complimentary link', 'Complimentary link']
 ]);
 

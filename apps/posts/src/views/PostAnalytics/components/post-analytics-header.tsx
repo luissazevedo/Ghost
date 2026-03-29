@@ -26,7 +26,6 @@ import {
     Navbar,
     PageMenu,
     PageMenuItem,
-    PostShareModal,
     formatDisplayDate,
     formatDisplayTime,
     formatNumber
@@ -34,6 +33,7 @@ import {
 import {Post, useGlobalData} from '@src/providers/post-analytics-context';
 import {getSiteTimezone} from '@src/utils/get-site-timezone';
 import {hasBeenEmailed, isEmailOnly, isPublishedAndEmailed, isPublishedOnly, useActiveVisitors, useNavigate} from '@tryghost/admin-x-framework';
+import {toast} from 'sonner';
 import {useAppContext} from '@src/providers/posts-app-context';
 import {useDeletePost} from '@tryghost/admin-x-framework/api/posts';
 import {useHandleError} from '@tryghost/admin-x-framework/hooks';
@@ -52,10 +52,43 @@ const PostAnalyticsHeader:React.FC<PostAnalyticsHeaderProps> = ({
     const {mutateAsync: deletePost} = useDeletePost();
     const handleError = useHandleError();
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-    const [isShareOpen, setIsShareOpen] = useState(false);
-    const {settings, site, statsConfig, post, isPostLoading, postId} = useGlobalData();
+    const {settings, statsConfig, post, isPostLoading, postId} = useGlobalData();
 
     const siteTimezone = getSiteTimezone(settings);
+
+    const isPaidPost = post?.visibility ? ['paid', 'tiers'].includes(post.visibility) : false;
+
+    const handleCopyPostLink = async () => {
+        if (!post?.url) {
+            return;
+        }
+        try {
+            await navigator.clipboard.writeText(post.url);
+            toast.success('Post link copied');
+        } catch (error) {
+            handleError(error);
+        }
+    };
+
+    const handleCopyComplimentaryLink = async () => {
+        if (!postId) {
+            return;
+        }
+        try {
+            const path = window.location.pathname;
+            const subdir = path.substring(0, path.search('/ghost/'));
+            const apiBase = `${subdir}/ghost/api/admin`;
+            const res = await fetch(`${apiBase}/posts/${postId}/share_link/`, {credentials: 'include'});
+            const data = await res.json();
+            const shareUrl = data?.post_share_link?.share_url;
+            if (shareUrl) {
+                await navigator.clipboard.writeText(shareUrl);
+                toast.success('Gift link copied');
+            }
+        } catch (error) {
+            handleError(error);
+        }
+    };
 
     // Use the active visitors hook with post-specific filtering
     const {activeVisitors, isLoading: isActiveVisitorsLoading} = useActiveVisitors({
@@ -158,21 +191,52 @@ const PostAnalyticsHeader:React.FC<PostAnalyticsHeaderProps> = ({
                                 {!isPostLoading &&
                                 <>
                                     {!post?.email_only &&
-                                        <PostShareModal
-                                            author={post?.authors?.[0]?.name || ''}
-                                            description=''
-                                            faviconURL={site?.icon || ''}
-                                            featureImageURL={post?.feature_image}
-                                            open={isShareOpen}
-                                            postExcerpt={post?.excerpt || ''}
-                                            postTitle={post?.title}
-                                            postURL={post?.url}
-                                            siteTitle={site?.title || ''}
-                                            onClose={() => setIsShareOpen(false)}
-                                            onOpenChange={setIsShareOpen}
-                                        >
-                                            <Button variant='outline' onClick={() => setIsShareOpen(true)}><LucideIcon.Share /> Share</Button>
-                                        </PostShareModal>
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant='outline'><LucideIcon.Share /> Share</Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align='end'>
+                                                <DropdownMenuGroup>
+                                                    <DropdownMenuItem onClick={handleCopyPostLink}>
+                                                        <LucideIcon.Link />
+                                                        Copy link
+                                                    </DropdownMenuItem>
+                                                    {isPaidPost &&
+                                                        <DropdownMenuItem onClick={handleCopyComplimentaryLink}>
+                                                            <LucideIcon.LockOpen />
+                                                            Copy gift link to paid post
+                                                        </DropdownMenuItem>
+                                                    }
+                                                </DropdownMenuGroup>
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuGroup>
+                                                    <DropdownMenuItem asChild>
+                                                        <a href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(post?.title || '')}%0A${encodeURIComponent(post?.url || '')}`} rel="noopener noreferrer" target="_blank">
+                                                            <LucideIcon.Twitter />
+                                                            Share on X
+                                                        </a>
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem asChild>
+                                                        <a href={`https://threads.net/intent/post?text=${encodeURIComponent(`${post?.title || ''} ${post?.url || ''}`)}`} rel="noopener noreferrer" target="_blank">
+                                                            <LucideIcon.AtSign />
+                                                            Share on Threads
+                                                        </a>
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem asChild>
+                                                        <a href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(post?.url || '')}`} rel="noopener noreferrer" target="_blank">
+                                                            <LucideIcon.Facebook />
+                                                            Share on Facebook
+                                                        </a>
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem asChild>
+                                                        <a href={`https://www.linkedin.com/shareArticle?mini=true&title=${encodeURIComponent(post?.title || '')}&url=${encodeURIComponent(post?.url || '')}`} rel="noopener noreferrer" target="_blank">
+                                                            <LucideIcon.Linkedin />
+                                                            Share on LinkedIn
+                                                        </a>
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuGroup>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
                                     }
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
@@ -296,6 +360,7 @@ const PostAnalyticsHeader:React.FC<PostAnalyticsHeaderProps> = ({
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
         </>
     );
 };

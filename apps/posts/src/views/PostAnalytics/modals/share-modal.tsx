@@ -1,54 +1,36 @@
-import {Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Input, LucideIcon, formatDisplayDate} from '@tryghost/shade';
-import {getPostShareLink, useCreatePostShareLink, useDeletePostShareLink} from '@tryghost/admin-x-framework/api/posts';
+import {Button, Input, LucideIcon, Popover, PopoverContent, PopoverTrigger} from '@tryghost/shade';
+import {getPostShareLink, useCyclePostShareLink} from '@tryghost/admin-x-framework/api/posts';
 import {toast} from 'sonner';
-import {useEffect, useMemo, useState} from 'react';
 import {useHandleError} from '@tryghost/admin-x-framework/hooks';
+import {useMemo, useState} from 'react';
 
-interface ShareModalProps {
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
+interface ComplimentaryLinkPanelProps {
     postId: string;
-    postTitle: string;
+    children: React.ReactNode;
 }
 
-const ShareModal: React.FC<ShareModalProps> = ({open, onOpenChange, postId, postTitle}) => {
+const ComplimentaryLinkPanel: React.FC<ComplimentaryLinkPanelProps> = ({postId, children}) => {
     const handleError = useHandleError();
     const [isCopied, setIsCopied] = useState(false);
-    const {data, isLoading, refetch} = getPostShareLink(postId, {enabled: open});
-    const {mutateAsync: createShareLink, isLoading: isCreating} = useCreatePostShareLink();
-    const {mutateAsync: deleteShareLink, isLoading: isRevoking} = useDeletePostShareLink();
+    const [isOpen, setIsOpen] = useState(false);
+    const {data, isLoading} = getPostShareLink(postId, {enabled: isOpen});
+    const {mutateAsync: cycleShareLink, isLoading: isCycling} = useCyclePostShareLink();
 
     const shareLink = data?.post_share_link ?? null;
-    const isWorking = isCreating || isRevoking;
 
-    const createdAt = useMemo(() => {
-        if (!shareLink?.created_at) {
+    const viewCount = useMemo(() => {
+        if (!shareLink) {
             return null;
         }
+        const count = shareLink.view_count ?? 0;
+        return `${count} ${count === 1 ? 'open' : 'opens'}`;
+    }, [shareLink]);
 
-        return formatDisplayDate(shareLink.created_at);
-    }, [shareLink?.created_at]);
-
-    useEffect(() => {
-        if (open) {
-            refetch();
-        }
-    }, [open, refetch]);
-
-    const handleCreate = async () => {
+    const handleCycle = async () => {
         try {
-            await createShareLink(postId);
-            toast.success('Complimentary link created');
-        } catch (error) {
-            handleError(error);
-        }
-    };
-
-    const handleRevoke = async () => {
-        try {
-            await deleteShareLink(postId);
+            await cycleShareLink(postId);
             setIsCopied(false);
-            toast.success('Complimentary link revoked');
+            toast.success('Complimentary link revoked. New link generated.');
         } catch (error) {
             handleError(error);
         }
@@ -70,64 +52,42 @@ const ShareModal: React.FC<ShareModalProps> = ({open, onOpenChange, postId, post
     };
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className='max-w-[560px]'>
-                <DialogHeader>
-                    <DialogTitle>Complimentary link</DialogTitle>
-                    <DialogDescription>
-                        Anyone with this link can read this post. Commenting and likes still require signup.
-                    </DialogDescription>
-                </DialogHeader>
-
-                <div className='space-y-4'>
-                    <div className='bg-muted/30 rounded-lg border p-4'>
-                        <div className='text-sm font-medium'>{postTitle}</div>
-                        {!shareLink && (
-                            <p className='mt-2 text-sm text-muted-foreground'>
-                                Create one complimentary link for this post, then copy it anywhere you want to send readers.
-                            </p>
-                        )}
-                        {shareLink && (
-                            <div className='mt-3 space-y-3'>
-                                <div className='space-y-2'>
-                                    <label className='text-xs font-medium uppercase tracking-wide text-muted-foreground'>Complimentary link</label>
-                                    <Input value={shareLink.share_url} readOnly />
-                                </div>
-                                <div className='flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground'>
-                                    {createdAt && <span>Created {createdAt}</span>}
-                                    <span>{shareLink.view_count} {shareLink.view_count === 1 ? 'open' : 'opens'}</span>
-                                </div>
-                            </div>
-                        )}
-                    </div>
+        <Popover open={isOpen} onOpenChange={setIsOpen}>
+            <PopoverTrigger asChild>
+                {children}
+            </PopoverTrigger>
+            <PopoverContent align='start' className='w-[340px]'>
+                <div className='space-y-3'>
+                    <h4 className='text-sm font-semibold'>Complimentary link</h4>
+                    <p className='text-xs text-muted-foreground'>
+                        Anyone with this link can read this post.
+                    </p>
 
                     {isLoading && !shareLink && (
-                        <div className='text-sm text-muted-foreground'>Loading complimentary link…</div>
+                        <div className='text-xs text-muted-foreground'>Loading…</div>
+                    )}
+
+                    {shareLink && (
+                        <>
+                            <Input className='text-xs' value={shareLink.share_url} readOnly />
+                            <div className='text-xs text-muted-foreground'>
+                                {viewCount}
+                            </div>
+                            <div className='flex items-center gap-2'>
+                                <Button className='grow' disabled={isCycling} size='sm' onClick={handleCopy}>
+                                    {isCopied ? <LucideIcon.Check className='size-3.5' /> : <LucideIcon.Link className='size-3.5' />}
+                                    {isCopied ? 'Copied' : 'Copy link'}
+                                </Button>
+                                <Button disabled={isCycling} size='sm' title='Revoke and generate new link' variant='outline' onClick={handleCycle}>
+                                    <LucideIcon.RefreshCw className='size-3.5' />
+                                </Button>
+                            </div>
+                        </>
                     )}
                 </div>
-
-                <DialogFooter className='gap-2 sm:justify-between'>
-                    {shareLink ? (
-                        <>
-                            <Button className='sm:mr-auto' disabled={isWorking} variant='outline' onClick={handleRevoke}>
-                                <LucideIcon.Trash2 />
-                                Revoke link
-                            </Button>
-                            <Button disabled={isWorking} onClick={handleCopy}>
-                                {isCopied ? <LucideIcon.Check /> : <LucideIcon.Link />}
-                                {isCopied ? 'Copied' : 'Copy link'}
-                            </Button>
-                        </>
-                    ) : (
-                        <Button disabled={isLoading || isWorking} onClick={handleCreate}>
-                            <LucideIcon.Link />
-                            Create complimentary link
-                        </Button>
-                    )}
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+            </PopoverContent>
+        </Popover>
     );
 };
 
-export default ShareModal;
+export default ComplimentaryLinkPanel;

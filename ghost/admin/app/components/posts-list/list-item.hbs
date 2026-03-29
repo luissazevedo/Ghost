@@ -42,6 +42,13 @@
                                 and sent
                             {{/if}}
                         {{/if}}
+                        {{#if (eq @post.visibility "members")}}
+                            · Members only
+                        {{else if (eq @post.visibility "paid")}}
+                            · Paid members
+                        {{else if (eq @post.visibility "tiers")}}
+                            · Specific tiers
+                        {{/if}}
                     </span>
                 </p>
             {{/unless}}
@@ -124,6 +131,13 @@
                                 {{#if this.isHovered}}
                                     <span {{css-transition "anim-fade-in-scale"}}>to {{gh-pluralize @post.email.emailCount "member"}}</span>
                                 {{/if}}
+                            {{/if}}
+                            {{#if (eq @post.visibility "members")}}
+                                · Members only
+                            {{else if (eq @post.visibility "paid")}}
+                                · Paid members
+                            {{else if (eq @post.visibility "tiers")}}
+                                · Specific tiers
                             {{/if}}
                         </span>
                     {{/if}}

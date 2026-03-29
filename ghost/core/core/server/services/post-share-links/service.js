@@ -58,9 +58,14 @@ class PostShareLinksService {
     }
 
     _buildCanonicalShareUrl(postId, token) {
-        const shareUrl = new URL(urlService.getUrlByResourceId(postId, {absolute: true}));
-        shareUrl.searchParams.set('share', token);
-        return shareUrl.toString();
+        const siteUrl = config.get('url').replace(/\/$/, '');
+        return `${siteUrl}/share/${token}/`;
+    }
+
+    _buildPostShareRedirectUrl(postId, token) {
+        const postUrl = new URL(urlService.getUrlByResourceId(postId, {absolute: true}));
+        postUrl.searchParams.set('share', token);
+        return postUrl.toString();
     }
 
     _serialize(model) {
@@ -92,13 +97,13 @@ class PostShareLinksService {
 
         if (!['published', 'sent'].includes(status)) {
             throw new errors.ValidationError({
-                message: 'Only published posts can have complimentary links.'
+                message: 'Only published posts can have gift links.'
             });
         }
 
         if (!['paid', 'tiers'].includes(visibility)) {
             throw new errors.ValidationError({
-                message: 'Complimentary links are only available for paid posts.'
+                message: 'Gift links are only available for paid posts.'
             });
         }
 
@@ -137,43 +142,55 @@ class PostShareLinksService {
     }
 
     async getForAdmin(postId) {
-        await this._getPost(postId);
-        const link = await this.getActiveByPostId(postId);
+        await this.assertPostCanBeShared(postId);
+        const link = await this.getOrCreateForPost(postId);
         return this._serialize(link);
     }
 
-    async createForPost(postId, userId) {
+    async getOrCreateForPost(postId) {
+        const existing = await this.getActiveByPostId(postId);
+        if (existing) {
+            return existing;
+        }
+
+        return await models.PostShareLink.add({
+            id: new ObjectID().toHexString(),
+            post_id: postId,
+            token: this._generateToken(),
+            view_count: 0
+        });
+    }
+
+    async createForPost(postId) {
+        await this.assertPostCanBeShared(postId);
+        const link = await this.getOrCreateForPost(postId);
+        return this._serialize(link);
+    }
+
+    async cycleForPost(postId) {
         await this.assertPostCanBeShared(postId);
 
         const existing = await this.getActiveByPostId(postId);
         if (existing) {
-            return this._serialize(existing);
+            await models.PostShareLink.edit({
+                revoked_at: new Date()
+            }, {
+                id: existing.get('id')
+            });
         }
 
-        const created = await models.PostShareLink.add({
+        const newLink = await models.PostShareLink.add({
             id: new ObjectID().toHexString(),
             post_id: postId,
             token: this._generateToken(),
-            created_by: userId || null,
             view_count: 0
         });
 
-        return this._serialize(created);
+        return this._serialize(newLink);
     }
 
     async revokeForPost(postId) {
-        const existing = await this.getActiveByPostId(postId);
-        if (!existing) {
-            return null;
-        }
-
-        await models.PostShareLink.edit({
-            revoked_at: new Date()
-        }, {
-            id: existing.get('id')
-        });
-
-        return true;
+        return this.cycleForPost(postId);
     }
 
     async incrementViewCount(id) {
@@ -253,7 +270,7 @@ class PostShareLinksService {
                 const activeLink = await this.getByToken(token);
 
                 if (activeLink) {
-                    return res.redirect(302, this._buildCanonicalShareUrl(activeLink.get('post_id'), token));
+                    return res.redirect(302, this._buildPostShareRedirectUrl(activeLink.get('post_id'), token));
                 }
 
                 const revokedLink = await this.getByToken(token, {includeRevoked: true});

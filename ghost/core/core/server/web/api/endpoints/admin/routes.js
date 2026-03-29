@@ -58,10 +58,10 @@ module.exports = function apiRoutes() {
             next(error);
         }
     });
-    router.del('/posts/:id/share_link', mw.authAdminApi, async function deletePostShareLink(req, res, next) {
+    router.del('/posts/:id/share_link', mw.authAdminApi, async function cyclePostShareLink(req, res, next) {
         try {
-            await postShareLinksService.revokeForPost(req.params.id);
-            res.status(204).end();
+            const postShareLink = await postShareLinksService.cycleForPost(req.params.id);
+            res.status(200).json({post_share_link: postShareLink});
         } catch (error) {
             next(error);
         }

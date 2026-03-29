@@ -149,7 +149,7 @@ function getUnlockLinkAttributionHelper(dataRoot) {
 
     const payload = JSON.stringify({
         postId: post.id,
-        source: 'Complimentary link',
+        source: 'Gift link',
         medium: 'paid-post-share'
     });
 

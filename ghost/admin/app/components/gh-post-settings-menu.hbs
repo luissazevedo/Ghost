@@ -94,6 +94,44 @@
 
                         {{/if}}
 
+                        {{#if this.canManageUnlockLink}}
+                            <GhFormGroup {{did-insert this.loadPostShareLink}}>
+                                <label>Gift link to paid post</label>
+                                {{#if this.isLoadingPostShareLink}}
+                                    <div class="gh-input-x gh-input-readonly">Loading…</div>
+                                {{else if this.postShareLink}}
+                                    <div class="gh-post-settings-unlock-inline">
+                                        <GhTextInput
+                                            @class="gh-input-x"
+                                            @readonly={{true}}
+                                            @value={{this.postShareLink.share_url}}
+                                        />
+                                        <button type="button" class="gh-post-settings-unlock-copy" title="Copy gift link" disabled={{this.isSavingPostShareLink}} {{on "click" this.copyPostShareLink}} data-test-button="copy-unlock-link">
+                                            {{svg-jar (if this.isCopiedPostShareLink "check" "link")}}
+                                        </button>
+                                    </div>
+                                    <p class="post-settings-unlock-meta">
+                                        {{#if this.showResetConfirmation}}
+                                            <span class="post-settings-unlock-confirm-text">Current link will stop working</span>
+                                            <span class="post-settings-unlock-confirm-actions">
+                                                <button type="button" class="post-settings-unlock-reset-link" {{on "click" this.cancelResetPostShareLink}} data-test-button="cancel-reset-unlock-link">
+                                                    Cancel
+                                                </button>
+                                                <button type="button" class="post-settings-unlock-reset-link post-settings-unlock-reset-confirm" disabled={{this.isSavingPostShareLink}} {{on "click" this.revokePostShareLink}} data-test-button="confirm-reset-unlock-link">
+                                                    Confirm
+                                                </button>
+                                            </span>
+                                        {{else}}
+                                            {{format-number this.postShareLink.view_count}} {{if (eq this.postShareLink.view_count 1) "open" "opens"}}
+                                            <button type="button" class="post-settings-unlock-reset-link" disabled={{this.isSavingPostShareLink}} {{on "click" this.confirmResetPostShareLink}} data-test-button="reset-unlock-link">
+                                                Reset
+                                            </button>
+                                        {{/if}}
+                                    </p>
+                                {{/if}}
+                            </GhFormGroup>
+                        {{/if}}
+
                         {{#unless (feature 'editorExcerpt')}}
                         <GhFormGroup @errors={{this.post.errors}} @hasValidated={{this.post.hasValidated}} @property="customExcerpt">
                             <label for="custom-excerpt">Excerpt</label>
@@ -125,14 +163,6 @@
                     </section>
 
                     <ul class="nav-list">
-                        {{#if this.canManageUnlockLink}}
-                            <li class="nav-list-item">
-                                <button type="button" {{on "click" (fn this.showSubview "unlock-link")}} data-test-button="unlock-link">
-                                    <span>{{svg-jar "unlock"}} Create complimentary link</span>
-                                </button>
-                                {{svg-jar "arrow-right" class="arrow-right"}}
-                            </li>
-                        {{/if}}
                         {{#if (and this.post.isPage this.post.lexical)}}
                             <li class="nav-list-item">
                                 <div class="for-switch xs">
@@ -624,23 +654,29 @@
                                             @readonly={{true}}
                                             @value={{this.postShareLink.share_url}}
                                         />
-                                        <p class="post-settings-unlock-meta">Created <strong>{{moment-format this.postShareLink.created_at "DD MMM YYYY"}}</strong>. Viewed <strong>{{format-number this.postShareLink.view_count}}</strong> {{if (eq this.postShareLink.view_count 1) "time" "times"}}.</p>
+                                        <p class="post-settings-unlock-meta">Viewed <strong>{{format-number this.postShareLink.view_count}}</strong> {{if (eq this.postShareLink.view_count 1) "time" "times"}}.</p>
                                     </GhFormGroup>
 
-                                    <div class="post-settings-unlock-actions">
-                                        <button type="button" class="gh-btn gh-btn-outline gh-btn-icon" title="Revoke complimentary link" disabled={{this.isSavingPostShareLink}} {{on "click" this.revokePostShareLink}} data-test-button="revoke-unlock-link">
-                                            <span>{{svg-jar "trash"}} Revoke link</span>
-                                        </button>
-                                        <button type="button" class="gh-btn gh-btn-primary gh-btn-icon" title="Copy complimentary link" disabled={{this.isSavingPostShareLink}} {{on "click" this.copyPostShareLink}} data-test-button="copy-unlock-link">
-                                            <span>{{svg-jar (if this.isCopiedPostShareLink "check" "link")}} {{if this.isCopiedPostShareLink "Copied" "Copy link"}}</span>
-                                        </button>
-                                    </div>
-                                {{else}}
-                                    <div class="post-settings-unlock-actions">
-                                        <button type="button" class="gh-btn gh-btn-primary gh-btn-icon gh-btn-fullwidth" title="Create complimentary link" disabled={{this.isSavingPostShareLink}} {{on "click" this.createPostShareLink}} data-test-button="create-unlock-link">
-                                            <span>{{svg-jar "link"}} Create complimentary link</span>
-                                        </button>
-                                    </div>
+                                    {{#if this.showResetConfirmation}}
+                                        <p class="post-settings-unlock-confirm-text">Anyone using the current link will lose access. Are you sure?</p>
+                                        <div class="post-settings-unlock-actions">
+                                            <button type="button" class="gh-btn gh-btn-outline gh-btn-icon" {{on "click" this.cancelResetPostShareLink}} data-test-button="cancel-reset-unlock-link">
+                                                <span>Cancel</span>
+                                            </button>
+                                            <button type="button" class="gh-btn gh-btn-red gh-btn-icon" disabled={{this.isSavingPostShareLink}} {{on "click" this.revokePostShareLink}} data-test-button="confirm-reset-unlock-link">
+                                                <span>Reset link</span>
+                                            </button>
+                                        </div>
+                                    {{else}}
+                                        <div class="post-settings-unlock-actions">
+                                            <button type="button" class="gh-btn gh-btn-outline gh-btn-icon" title="Reset complimentary link" disabled={{this.isSavingPostShareLink}} {{on "click" this.confirmResetPostShareLink}} data-test-button="reset-unlock-link">
+                                                <span>{{svg-jar "retry"}} Reset link</span>
+                                            </button>
+                                            <button type="button" class="gh-btn gh-btn-primary gh-btn-icon" title="Copy complimentary link" disabled={{this.isSavingPostShareLink}} {{on "click" this.copyPostShareLink}} data-test-button="copy-unlock-link">
+                                                <span>{{svg-jar (if this.isCopiedPostShareLink "check" "link")}} {{if this.isCopiedPostShareLink "Copied" "Copy link"}}</span>
+                                            </button>
+                                        </div>
+                                    {{/if}}
                                 {{/if}}
                             </form>
                         </div>

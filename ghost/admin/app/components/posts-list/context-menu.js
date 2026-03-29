@@ -55,6 +55,9 @@ const messages = {
     },
     copiedPreviewUrl: {
         single: 'Preview link copied'
+    },
+    copiedComplimentaryUrl: {
+        single: 'Gift link copied'
     }
 };
 
@@ -94,6 +97,11 @@ export default class PostsContextMenu extends Component {
     @action
     async copyPreviewLink() {
         this.menu.performTask(this.copyPreviewLinkTask);
+    }
+
+    @action
+    async copyComplimentaryLink() {
+        this.menu.performTask(this.copyComplimentaryLinkTask);
     }
 
     @action
@@ -429,6 +437,23 @@ export default class PostsContextMenu extends Component {
         return true;
     }
 
+    @task
+    *copyComplimentaryLinkTask() {
+        const post = this.selectionList.availableModels[0];
+        try {
+            const response = yield this.ajax.request(`/ghost/api/admin/posts/${post.id}/share_link/`);
+            const shareUrl = response?.post_share_link?.share_url;
+            if (shareUrl) {
+                copyTextToClipboard(shareUrl);
+                this.notifications.showNotification(this.#getToastMessage('copiedComplimentaryUrl'), {type: 'success'});
+            }
+        } catch (error) {
+            this.notifications.showAPIError(error, {key: 'post.complimentary-link.failed'});
+        }
+        yield timeout(1000);
+        return true;
+    }
+
     async performBulkDestroy() {
         const filter = this.selectionList.filter;
         let bulkUpdateUrl = this.ghostPaths.url.api(this.type === 'post' ? 'posts' : 'pages') + `?filter=${encodeURIComponent(filter)}`;
@@ -493,5 +518,14 @@ export default class PostsContextMenu extends Component {
 
     get canCopySelection() {
         return this.selectionList.availableModels.length === 1;
+    }
+
+    get canCopyComplimentaryLink() {
+        if (this.selectionList.availableModels.length !== 1) {
+            return false;
+        }
+        const post = this.selectionList.availableModels[0];
+        return ['published', 'sent'].includes(post.status)
+            && ['paid', 'tiers'].includes(post.visibility);
     }
 }

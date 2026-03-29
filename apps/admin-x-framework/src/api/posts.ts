@@ -159,8 +159,9 @@ export const useCreatePostShareLink = createMutation<PostShareLinkResponseType, 
     invalidateQueries: {dataType: postShareLinkDataType}
 });
 
-export const useDeletePostShareLink = createMutation<unknown, string>({
+export const useCyclePostShareLink = createMutation<PostShareLinkResponseType, string>({
     method: 'DELETE',
     path: id => `/posts/${id}/share_link/`,
+    returnData: normalizePostShareLinkResponse,
     invalidateQueries: {dataType: postShareLinkDataType}
 });

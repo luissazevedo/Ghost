@@ -385,8 +385,8 @@ class PostsStatsService {
 
             results.forEach((row) => {
                 const normalizedSource = normalizeSource(row.source);
-                const unlockLinkSourceLabel = normalizedSource === 'Complimentary link' && row.unlock_link_post_title
-                    ? `Complimentary link · ${row.unlock_link_post_title}`
+                const unlockLinkSourceLabel = normalizedSource === 'Gift link' && row.unlock_link_post_title
+                    ? `Gift link · ${row.unlock_link_post_title}`
                     : normalizedSource;
                 const existing = normalizedResults.get(unlockLinkSourceLabel) || {
                     source: unlockLinkSourceLabel,

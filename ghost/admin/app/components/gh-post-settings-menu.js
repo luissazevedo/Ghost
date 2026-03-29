@@ -217,30 +217,28 @@ export default class GhPostSettingsMenu extends Component {
         this.isCopiedPostShareLink = false;
     }
 
-    @action
-    async createPostShareLink() {
-        this.isSavingPostShareLink = true;
+    @tracked showResetConfirmation = false;
 
-        try {
-            const response = await this.ajax.post(`/ghost/api/admin/posts/${this.post.id}/share_link/`);
-            this.postShareLink = response?.post_share_link || null;
-            this.notifications.showNotification('Complimentary link created.', {type: 'success'});
-        } catch (error) {
-            this.showError(error);
-        } finally {
-            this.isSavingPostShareLink = false;
-        }
+    @action
+    confirmResetPostShareLink() {
+        this.showResetConfirmation = true;
+    }
+
+    @action
+    cancelResetPostShareLink() {
+        this.showResetConfirmation = false;
     }
 
     @action
     async revokePostShareLink() {
         this.isSavingPostShareLink = true;
+        this.showResetConfirmation = false;
 
         try {
-            await this.ajax.delete(`/ghost/api/admin/posts/${this.post.id}/share_link/`);
-            this.postShareLink = null;
+            const response = await this.ajax.delete(`/ghost/api/admin/posts/${this.post.id}/share_link/`);
+            this.postShareLink = response?.post_share_link || null;
             this.isCopiedPostShareLink = false;
-            this.notifications.showNotification('Complimentary link revoked.', {type: 'success'});
+            this.notifications.showNotification('Gift link reset', {type: 'success'});
         } catch (error) {
             this.showError(error);
         } finally {
@@ -256,7 +254,7 @@ export default class GhPostSettingsMenu extends Component {
 
         copyTextToClipboard(this.postShareLink.share_url);
         this.isCopiedPostShareLink = true;
-        this.notifications.showNotification('Complimentary link copied.', {type: 'success'});
+        this.notifications.showNotification('Gift link copied', {type: 'success'});
 
         window.setTimeout(() => {
             this.isCopiedPostShareLink = false;
@@ -691,7 +689,11 @@ export default class GhPostSettingsMenu extends Component {
 
     @action
     savePost() {
-        this.savePostTask.perform().catch((error) => {
+        this.savePostTask.perform().then(() => {
+            if (this.canManageUnlockLink && !this.postShareLink) {
+                this.loadPostShareLink();
+            }
+        }).catch((error) => {
             this.showError(error);
             this.post.rollbackAttributes();
         });
@@ -722,18 +724,15 @@ export default class GhPostSettingsMenu extends Component {
         document.documentElement.style.setProperty('--kg-breakout-adjustment', `${width}px`);
     }
 
+    @action
     async loadPostShareLink() {
         this.isLoadingPostShareLink = true;
 
         try {
             const response = await this.ajax.request(`/ghost/api/admin/posts/${this.post.id}/share_link/`);
             this.postShareLink = response?.post_share_link || null;
-        } catch (error) {
+        } catch {
             this.postShareLink = null;
-
-            if (error?.payload?.errors?.[0]?.type !== 'NotFoundError') {
-                this.showError(error);
-            }
         } finally {
             this.isLoadingPostShareLink = false;
         }
